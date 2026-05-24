@@ -8,6 +8,7 @@ import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.nbt.NbtCompound
 import net.minecraft.network.listener.ClientPlayPacketListener
 import net.minecraft.network.packet.Packet
+import net.minecraft.server.world.ServerWorld
 import net.minecraft.util.math.BlockPos
 import java.util.UUID
 
@@ -29,14 +30,30 @@ class StoreTableBlockEntity(pos: BlockPos, state: BlockState) :
         }
 
     fun setOwner(player: PlayerEntity) {
+        if (ownerUuid != null) return
         ownerUuid = player.uuid
         ownerName = player.gameProfile.name
         markDirty()
+        (world as? ServerWorld)?.chunkManager?.markForUpdate(pos)
     }
 
     fun isOwner(player: PlayerEntity): Boolean {
-        val uuid = ownerUuid ?: return false
-        return uuid == player.uuid
+        val uuid = ownerUuid
+        if (uuid != null) {
+            if (uuid == player.uuid) return true
+
+            // Some servers/environments can present different UUIDs across sessions.
+            // If the name matches, treat as the same owner and repair the stored UUID.
+            val name = ownerName
+            if (name != null && name == player.gameProfile.name) {
+                ownerUuid = player.uuid
+                markDirty()
+                (world as? ServerWorld)?.chunkManager?.markForUpdate(pos)
+                return true
+            }
+            return false
+        }
+        return ownerName != null && ownerName == player.gameProfile.name
     }
 
     override fun writeNbt(nbt: NbtCompound) {

@@ -57,9 +57,6 @@ class StoreTableBlock(settings: Settings) : BlockWithEntity(settings), BlockEnti
 
         // Price setting: owner + named paper with positive integer
         if (held.item == Items.PAPER && held.hasCustomName()) {
-            if (be.ownerUuid == null) {
-                be.setOwner(player)
-            }
             if (!be.isOwner(player)) {
                 player.sendMessage(Text.literal("店主以外は価格を変更できません"), false)
                 return ActionResult.SUCCESS
