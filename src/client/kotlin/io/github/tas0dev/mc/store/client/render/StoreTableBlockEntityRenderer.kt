@@ -25,15 +25,14 @@ class StoreTableBlockEntityRenderer(ctx: BlockEntityRendererFactory.Context) : B
         if (price <= 0) return
 
         val client = MinecraftClient.getInstance()
-        val camera = client.gameRenderer.camera
+        val dispatcher = client.entityRenderDispatcher
 
         val text: Text = Text.literal("$price")
         val textWidth = textRenderer.getWidth(text).toFloat()
 
         matrices.push()
         matrices.translate(0.5, 1.05, 0.5)
-        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-camera.yaw))
-        matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(camera.pitch))
+        matrices.multiply(dispatcher.rotation)
 
         val scale = 0.02f
         matrices.scale(-scale, -scale, scale)
@@ -49,11 +48,10 @@ class StoreTableBlockEntityRenderer(ctx: BlockEntityRendererFactory.Context) : B
             false,
             matrices.peek().positionMatrix,
             vertexConsumers,
-            TextRenderer.TextLayerType.SEE_THROUGH,
+            TextRenderer.TextLayerType.NORMAL,
             background,
             light,
         )
         matrices.pop()
     }
 }
-

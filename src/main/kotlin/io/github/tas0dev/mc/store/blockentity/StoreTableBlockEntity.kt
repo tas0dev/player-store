@@ -3,8 +3,11 @@ package io.github.tas0dev.mc.store.blockentity
 import io.github.tas0dev.mc.store.registry.ModBlockEntities
 import net.minecraft.block.BlockState
 import net.minecraft.block.entity.BlockEntity
+import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.nbt.NbtCompound
+import net.minecraft.network.listener.ClientPlayPacketListener
+import net.minecraft.network.packet.Packet
 import net.minecraft.util.math.BlockPos
 import java.util.UUID
 
@@ -49,6 +52,14 @@ class StoreTableBlockEntity(pos: BlockPos, state: BlockState) :
         storedPrice = nbt.getInt(NBT_PRICE)
         ownerUuid = if (nbt.containsUuid(NBT_OWNER_UUID)) nbt.getUuid(NBT_OWNER_UUID) else null
         ownerName = if (nbt.contains(NBT_OWNER_NAME)) nbt.getString(NBT_OWNER_NAME) else null
+    }
+
+    override fun toInitialChunkDataNbt(): NbtCompound {
+        return createNbt()
+    }
+
+    override fun toUpdatePacket(): Packet<ClientPlayPacketListener> {
+        return BlockEntityUpdateS2CPacket.create(this)
     }
 
     companion object {

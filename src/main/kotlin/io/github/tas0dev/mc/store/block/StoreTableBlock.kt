@@ -10,6 +10,7 @@ import net.minecraft.entity.LivingEntity
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.item.ItemStack
 import net.minecraft.item.Items
+import net.minecraft.server.world.ServerWorld
 import net.minecraft.text.Text
 import net.minecraft.util.ActionResult
 import net.minecraft.util.Hand
@@ -79,7 +80,8 @@ class StoreTableBlock(settings: Settings) : BlockWithEntity(settings), BlockEnti
 
             be.price = price
             be.markDirty()
-            world.updateListeners(pos, state, state, Block.NOTIFY_ALL)
+            // Ensure the updated BlockEntity NBT reaches clients for rendering.
+            (world as? ServerWorld)?.chunkManager?.markForUpdate(pos)
             player.sendMessage(Text.literal("価格を $price シルバーに設定しました"), false)
             return ActionResult.SUCCESS
         }
