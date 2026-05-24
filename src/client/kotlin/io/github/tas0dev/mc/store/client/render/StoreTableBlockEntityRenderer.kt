@@ -31,7 +31,7 @@ class StoreTableBlockEntityRenderer(ctx: BlockEntityRendererFactory.Context) : B
         val textWidth = textRenderer.getWidth(text).toFloat()
 
         matrices.push()
-        matrices.translate(0.5, 1.05, 0.5)
+        matrices.translate(0.5, 1.5, 0.5)
         matrices.multiply(dispatcher.rotation)
 
         val scale = 0.02f
