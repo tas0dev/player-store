@@ -27,6 +27,12 @@
 				"adapter": "kotlin"
 			}
 		],
+		"modmenu": [
+			{
+				"value": "io.github.tas0dev.mc.store.client.modmenu.PlayerStoreModMenuIntegration",
+				"adapter": "kotlin"
+			}
+		],
 		"fabric-datagen": [
 			{
 				"value": "io.github.tas0dev.mc.store.client.PlayerStoreDataGenerator",

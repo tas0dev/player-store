@@ -3,6 +3,10 @@ package io.github.tas0dev.mc.store.client
 import io.github.tas0dev.mc.store.registry.ModBlocks
 import io.github.tas0dev.mc.store.registry.ModBlockEntities
 import io.github.tas0dev.mc.store.client.render.StoreTableBlockEntityRenderer
+import io.github.tas0dev.mc.store.client.command.HudCommands
+import io.github.tas0dev.mc.store.client.config.PlayerStoreClientConfig
+import io.github.tas0dev.mc.store.client.hud.SilverHud
+import io.github.tas0dev.mc.store.client.net.ClientSilverSync
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap
 import net.fabricmc.fabric.api.client.rendering.v1.BlockEntityRendererRegistry
@@ -16,5 +20,10 @@ object PlayerStoreClient : ClientModInitializer {
         BlockEntityRendererRegistry.register(ModBlockEntities.STORE_TABLE) { ctx ->
             StoreTableBlockEntityRenderer(ctx)
         }
+
+        PlayerStoreClientConfig.load()
+        ClientSilverSync.register()
+        SilverHud.register()
+        HudCommands.register()
     }
 }

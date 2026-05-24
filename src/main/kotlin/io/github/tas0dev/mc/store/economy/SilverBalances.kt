@@ -1,5 +1,6 @@
 package io.github.tas0dev.mc.store.economy
 
+import io.github.tas0dev.mc.store.net.SilverSync
 import net.minecraft.nbt.NbtCompound
 import net.minecraft.nbt.NbtElement
 import net.minecraft.nbt.NbtList
@@ -21,6 +22,7 @@ object SilverBalances {
         val state = state(server)
         state.set(uuid, (state.get(uuid) + delta).coerceAtLeast(0))
         state.markDirty()
+        SilverSync.send(server, uuid)
     }
 
     fun tryTake(server: MinecraftServer, uuid: UUID, amount: Int): Boolean {
@@ -30,6 +32,7 @@ object SilverBalances {
         if (current < amount) return false
         state.set(uuid, current - amount)
         state.markDirty()
+        SilverSync.send(server, uuid)
         return true
     }
 
