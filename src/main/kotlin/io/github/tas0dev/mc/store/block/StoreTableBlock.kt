@@ -89,6 +89,7 @@ class StoreTableBlock(settings: Settings) : BlockWithEntity(settings), BlockEnti
         if (be.isOwner(player)) {
             // Sneak + empty hand: clear product.
             if (sneaking && held.isEmpty) {
+                returnStockToOwner(world, pos, player, be)
                 be.sellItem = ItemStack.EMPTY
                 be.stock = 0
                 be.markDirty()
@@ -99,7 +100,12 @@ class StoreTableBlock(settings: Settings) : BlockWithEntity(settings), BlockEnti
 
             // Deposit stock if it matches current product.
             if (!held.isEmpty && !be.sellItem.isEmpty && ItemStack.canCombine(held, be.sellItem)) {
-                val add = if (sneaking) held.count else 1
+                val space = (MAX_STOCK - be.stock).coerceAtLeast(0)
+                val add = held.count.coerceAtMost(space)
+                if (add <= 0) {
+                    player.sendMessage(Text.literal("在庫が上限（$MAX_STOCK 個）です"), false)
+                    return ActionResult.SUCCESS
+                }
                 held.decrement(add)
                 be.stock = be.stock + add
                 be.markDirty()
@@ -111,6 +117,8 @@ class StoreTableBlock(settings: Settings) : BlockWithEntity(settings), BlockEnti
             // Set/replace product (does not consume).
             // about.md: holding the item and right-click registers it as the sell item.
             if (!held.isEmpty && held.item != Items.PAPER) {
+                // If there is stock for the previous item, return it to the owner before replacing.
+                returnStockToOwner(world, pos, player, be)
                 val product = held.copy()
                 product.count = 1
                 be.sellItem = product
@@ -169,5 +177,20 @@ class StoreTableBlock(settings: Settings) : BlockWithEntity(settings), BlockEnti
 
     companion object {
         private val PRICE_REGEX = Regex("^[1-9][0-9]*\$")
+        private const val MAX_STOCK = 64
+
+        private fun returnStockToOwner(world: World, pos: BlockPos, owner: PlayerEntity, be: StoreTableBlockEntity) {
+            if (world.isClient) return
+            val stock = be.stock
+            val item = be.sellItem
+            if (stock <= 0 || item.isEmpty) return
+
+            val refund = item.copy()
+            refund.count = stock.coerceAtMost(MAX_STOCK)
+            val inserted = owner.inventory.insertStack(refund)
+            if (!inserted && !refund.isEmpty) {
+                owner.dropItem(refund, false)
+            }
+        }
     }
 }

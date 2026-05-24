@@ -44,7 +44,7 @@ class StoreTableBlockEntity(pos: BlockPos, state: BlockState) :
     var stock: Int
         get() = storedStock
         set(value) {
-            storedStock = value
+            storedStock = value.coerceIn(0, 64)
             markDirty()
         }
 
