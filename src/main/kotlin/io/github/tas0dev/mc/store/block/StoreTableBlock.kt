@@ -97,13 +97,20 @@ class StoreTableBlock(settings: Settings) : BlockWithEntity(settings), BlockEnti
                 return ActionResult.SUCCESS
             }
 
-            // Set product:
-            // - If no product yet, normal right click sets it (about.md behavior).
-            // - If sneaking, always set/replace product (does not consume).
-            // - If holding a different item than current product, replace product (does not consume).
-            if (!held.isEmpty && held.item != Items.PAPER &&
-                (sneaking || be.sellItem.isEmpty || !ItemStack.canCombine(held, be.sellItem))
-            ) {
+            // Deposit stock if it matches current product.
+            if (!held.isEmpty && !be.sellItem.isEmpty && ItemStack.canCombine(held, be.sellItem)) {
+                val add = if (sneaking) held.count else 1
+                held.decrement(add)
+                be.stock = be.stock + add
+                be.markDirty()
+                (world as? ServerWorld)?.chunkManager?.markForUpdate(pos)
+                player.sendMessage(Text.literal("在庫を $add 個追加しました（在庫: ${be.stock}）"), false)
+                return ActionResult.SUCCESS
+            }
+
+            // Set/replace product (does not consume).
+            // about.md: holding the item and right-click registers it as the sell item.
+            if (!held.isEmpty && held.item != Items.PAPER) {
                 val product = held.copy()
                 product.count = 1
                 be.sellItem = product
@@ -111,16 +118,6 @@ class StoreTableBlock(settings: Settings) : BlockWithEntity(settings), BlockEnti
                 be.markDirty()
                 (world as? ServerWorld)?.chunkManager?.markForUpdate(pos)
                 player.sendMessage(Text.literal("販売商品を設定しました"), false)
-                return ActionResult.SUCCESS
-            }
-
-            // Normal right click + item: deposit stock if it matches product.
-            if (!held.isEmpty && !be.sellItem.isEmpty && ItemStack.canCombine(held, be.sellItem)) {
-                held.decrement(1)
-                be.stock = be.stock + 1
-                be.markDirty()
-                (world as? ServerWorld)?.chunkManager?.markForUpdate(pos)
-                player.sendMessage(Text.literal("在庫を 1 個追加しました（在庫: ${be.stock}）"), false)
                 return ActionResult.SUCCESS
             }
         } else {
