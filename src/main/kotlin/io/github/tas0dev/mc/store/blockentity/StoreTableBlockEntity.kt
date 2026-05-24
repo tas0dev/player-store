@@ -5,6 +5,7 @@ import net.minecraft.block.BlockState
 import net.minecraft.block.entity.BlockEntity
 import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket
 import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.item.ItemStack
 import net.minecraft.nbt.NbtCompound
 import net.minecraft.network.listener.ClientPlayPacketListener
 import net.minecraft.network.packet.Packet
@@ -21,11 +22,27 @@ class StoreTableBlockEntity(pos: BlockPos, state: BlockState) :
         private set
 
     private var storedPrice: Int = 0
+    private var storedSellItem: ItemStack = ItemStack.EMPTY
+    private var storedStock: Int = 0
 
     var price: Int
         get() = storedPrice
         set(value) {
             storedPrice = value
+            markDirty()
+        }
+
+    var sellItem: ItemStack
+        get() = storedSellItem
+        set(value) {
+            storedSellItem = value
+            markDirty()
+        }
+
+    var stock: Int
+        get() = storedStock
+        set(value) {
+            storedStock = value
             markDirty()
         }
 
@@ -59,6 +76,10 @@ class StoreTableBlockEntity(pos: BlockPos, state: BlockState) :
     override fun writeNbt(nbt: NbtCompound) {
         super.writeNbt(nbt)
         nbt.putInt(NBT_PRICE, storedPrice)
+        nbt.putInt(NBT_STOCK, storedStock)
+        if (!storedSellItem.isEmpty) {
+            nbt.put(NBT_SELL_ITEM, storedSellItem.writeNbt(NbtCompound()))
+        }
         ownerUuid?.let { nbt.putUuid(NBT_OWNER_UUID, it) }
         ownerName?.let { nbt.putString(NBT_OWNER_NAME, it) }
     }
@@ -67,6 +88,8 @@ class StoreTableBlockEntity(pos: BlockPos, state: BlockState) :
         super.readNbt(nbt)
         // Avoid marking the chunk dirty on load.
         storedPrice = nbt.getInt(NBT_PRICE)
+        storedStock = nbt.getInt(NBT_STOCK)
+        storedSellItem = if (nbt.contains(NBT_SELL_ITEM)) ItemStack.fromNbt(nbt.getCompound(NBT_SELL_ITEM)) else ItemStack.EMPTY
         ownerUuid = if (nbt.containsUuid(NBT_OWNER_UUID)) nbt.getUuid(NBT_OWNER_UUID) else null
         ownerName = if (nbt.contains(NBT_OWNER_NAME)) nbt.getString(NBT_OWNER_NAME) else null
     }
@@ -81,6 +104,8 @@ class StoreTableBlockEntity(pos: BlockPos, state: BlockState) :
 
     companion object {
         private const val NBT_PRICE = "Price"
+        private const val NBT_SELL_ITEM = "SellItem"
+        private const val NBT_STOCK = "Stock"
         private const val NBT_OWNER_UUID = "OwnerUuid"
         private const val NBT_OWNER_NAME = "OwnerName"
     }

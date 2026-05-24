@@ -3,9 +3,11 @@ package io.github.tas0dev.mc.store.client.render
 import io.github.tas0dev.mc.store.blockentity.StoreTableBlockEntity
 import net.minecraft.client.MinecraftClient
 import net.minecraft.client.font.TextRenderer
+import net.minecraft.client.render.OverlayTexture
 import net.minecraft.client.render.VertexConsumerProvider
 import net.minecraft.client.render.block.entity.BlockEntityRenderer
 import net.minecraft.client.render.block.entity.BlockEntityRendererFactory
+import net.minecraft.client.render.model.json.ModelTransformationMode
 import net.minecraft.client.util.math.MatrixStack
 import net.minecraft.text.Text
 import net.minecraft.util.math.RotationAxis
@@ -21,6 +23,25 @@ class StoreTableBlockEntityRenderer(ctx: BlockEntityRendererFactory.Context) : B
         light: Int,
         overlay: Int,
     ) {
+        val product = entity.sellItem
+        if (!product.isEmpty) {
+            matrices.push()
+            matrices.translate(0.5, 1.02, 0.5)
+            matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(45f))
+            matrices.scale(0.6f, 0.6f, 0.6f)
+            MinecraftClient.getInstance().itemRenderer.renderItem(
+                product,
+                ModelTransformationMode.FIXED,
+                light,
+                OverlayTexture.DEFAULT_UV,
+                matrices,
+                vertexConsumers,
+                entity.world,
+                0,
+            )
+            matrices.pop()
+        }
+
         val price = entity.price
         if (price <= 0) return
 

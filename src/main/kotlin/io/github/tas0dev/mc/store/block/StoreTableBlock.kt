@@ -1,6 +1,7 @@
 package io.github.tas0dev.mc.store.block
 
 import io.github.tas0dev.mc.store.blockentity.StoreTableBlockEntity
+import io.github.tas0dev.mc.store.economy.SilverBalances
 import net.minecraft.block.Block
 import net.minecraft.block.BlockEntityProvider
 import net.minecraft.block.BlockState
@@ -80,6 +81,82 @@ class StoreTableBlock(settings: Settings) : BlockWithEntity(settings), BlockEnti
             // Ensure the updated BlockEntity NBT reaches clients for rendering.
             (world as? ServerWorld)?.chunkManager?.markForUpdate(pos)
             player.sendMessage(Text.literal("価格を $price シルバーに設定しました"), false)
+            return ActionResult.SUCCESS
+        }
+
+        // Product setup / stock: owner only.
+        if (be.isOwner(player)) {
+            // Sneak + empty hand: clear product.
+            if (player.isSneaking && held.isEmpty) {
+                be.sellItem = ItemStack.EMPTY
+                be.stock = 0
+                be.markDirty()
+                (world as? ServerWorld)?.chunkManager?.markForUpdate(pos)
+                player.sendMessage(Text.literal("商品設定をクリアしました"), false)
+                return ActionResult.SUCCESS
+            }
+
+            // Sneak + item in hand: set product (does not consume).
+            if (player.isSneaking && !held.isEmpty) {
+                val product = held.copy()
+                product.count = 1
+                be.sellItem = product
+                be.markDirty()
+                (world as? ServerWorld)?.chunkManager?.markForUpdate(pos)
+                player.sendMessage(Text.literal("販売商品を設定しました"), false)
+                return ActionResult.SUCCESS
+            }
+
+            // Normal right click + item: deposit stock if it matches product.
+            if (!held.isEmpty && !be.sellItem.isEmpty && ItemStack.canCombine(held, be.sellItem)) {
+                held.decrement(1)
+                be.stock = be.stock + 1
+                be.markDirty()
+                (world as? ServerWorld)?.chunkManager?.markForUpdate(pos)
+                player.sendMessage(Text.literal("在庫を 1 個追加しました（在庫: ${be.stock}）"), false)
+                return ActionResult.SUCCESS
+            }
+        } else {
+            // Purchase: non-owner only (owner can test by not sneaking with empty hand, but we keep it strict).
+            if (be.price <= 0) {
+                player.sendMessage(Text.literal("価格が設定されていません"), false)
+                return ActionResult.SUCCESS
+            }
+            val product = be.sellItem
+            if (product.isEmpty) {
+                player.sendMessage(Text.literal("商品が設定されていません"), false)
+                return ActionResult.SUCCESS
+            }
+            if (be.stock <= 0) {
+                player.sendMessage(Text.literal("在庫がありません"), false)
+                return ActionResult.SUCCESS
+            }
+
+            val server = world.server ?: return ActionResult.SUCCESS
+            val price = be.price
+            if (!SilverBalances.tryTake(server, player.uuid, price)) {
+                player.sendMessage(Text.literal("シルバーが足りません"), false)
+                return ActionResult.SUCCESS
+            }
+            be.ownerUuid?.let { ownerUuid ->
+                SilverBalances.add(server, ownerUuid, price)
+            }
+
+            val toGive = product.copy()
+            toGive.count = 1
+            val inserted = player.inventory.insertStack(toGive)
+            if (!inserted) {
+                // refund
+                SilverBalances.add(server, player.uuid, price)
+                be.ownerUuid?.let { ownerUuid -> SilverBalances.add(server, ownerUuid, -price) }
+                player.sendMessage(Text.literal("インベントリに空きがありません"), false)
+                return ActionResult.SUCCESS
+            }
+
+            be.stock = be.stock - 1
+            be.markDirty()
+            (world as? ServerWorld)?.chunkManager?.markForUpdate(pos)
+            player.sendMessage(Text.literal("${price} シルバーで購入しました（残り在庫: ${be.stock}）"), false)
             return ActionResult.SUCCESS
         }
 
