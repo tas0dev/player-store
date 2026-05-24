@@ -55,6 +55,7 @@ class StoreTableBlock(settings: Settings) : BlockWithEntity(settings), BlockEnti
 
         val be = world.getBlockEntity(pos) as? StoreTableBlockEntity ?: return ActionResult.PASS
         val held = player.getStackInHand(hand)
+        val sneaking = player.isSneaking
 
         // Price setting: owner + named paper with positive integer
         if (held.item == Items.PAPER && held.hasCustomName()) {
@@ -87,7 +88,7 @@ class StoreTableBlock(settings: Settings) : BlockWithEntity(settings), BlockEnti
         // Product setup / stock: owner only.
         if (be.isOwner(player)) {
             // Sneak + empty hand: clear product.
-            if (player.isSneaking && held.isEmpty) {
+            if (sneaking && held.isEmpty) {
                 be.sellItem = ItemStack.EMPTY
                 be.stock = 0
                 be.markDirty()
@@ -96,11 +97,17 @@ class StoreTableBlock(settings: Settings) : BlockWithEntity(settings), BlockEnti
                 return ActionResult.SUCCESS
             }
 
-            // Sneak + item in hand: set product (does not consume).
-            if (player.isSneaking && !held.isEmpty) {
+            // Set product:
+            // - If no product yet, normal right click sets it (about.md behavior).
+            // - If sneaking, always set/replace product (does not consume).
+            // - If holding a different item than current product, replace product (does not consume).
+            if (!held.isEmpty && held.item != Items.PAPER &&
+                (sneaking || be.sellItem.isEmpty || !ItemStack.canCombine(held, be.sellItem))
+            ) {
                 val product = held.copy()
                 product.count = 1
                 be.sellItem = product
+                be.stock = 0
                 be.markDirty()
                 (world as? ServerWorld)?.chunkManager?.markForUpdate(pos)
                 player.sendMessage(Text.literal("販売商品を設定しました"), false)

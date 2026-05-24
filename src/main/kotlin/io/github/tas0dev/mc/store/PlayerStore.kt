@@ -3,6 +3,7 @@ package io.github.tas0dev.mc.store
 import io.github.tas0dev.mc.store.registry.ModBlockEntities
 import io.github.tas0dev.mc.store.registry.ModBlocks
 import io.github.tas0dev.mc.store.server.command.SilverCommands
+import io.github.tas0dev.mc.store.server.command.StoreTableOwnerDebugCommands
 import net.fabricmc.api.ModInitializer
 import org.slf4j.LoggerFactory
 
@@ -14,6 +15,7 @@ object PlayerStore : ModInitializer {
         ModBlocks.register()
         ModBlockEntities.register()
         SilverCommands.register()
+        StoreTableOwnerDebugCommands.register()
         logger.info("PlayerStore initialized")
     }
 }

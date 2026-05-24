@@ -1,6 +1,7 @@
 package io.github.tas0dev.mc.store.blockentity
 
 import io.github.tas0dev.mc.store.registry.ModBlockEntities
+import io.github.tas0dev.mc.store.server.LoadedStoreTableTracker
 import net.minecraft.block.BlockState
 import net.minecraft.block.entity.BlockEntity
 import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket
@@ -11,6 +12,7 @@ import net.minecraft.network.listener.ClientPlayPacketListener
 import net.minecraft.network.packet.Packet
 import net.minecraft.server.world.ServerWorld
 import net.minecraft.util.math.BlockPos
+import net.minecraft.world.World
 import java.util.UUID
 
 class StoreTableBlockEntity(pos: BlockPos, state: BlockState) :
@@ -50,6 +52,20 @@ class StoreTableBlockEntity(pos: BlockPos, state: BlockState) :
         if (ownerUuid != null) return
         ownerUuid = player.uuid
         ownerName = player.gameProfile.name
+        markDirty()
+        (world as? ServerWorld)?.chunkManager?.markForUpdate(pos)
+    }
+
+    fun forceOwner(uuid: UUID, name: String) {
+        ownerUuid = uuid
+        ownerName = name
+        markDirty()
+        (world as? ServerWorld)?.chunkManager?.markForUpdate(pos)
+    }
+
+    fun clearOwner() {
+        ownerUuid = null
+        ownerName = null
         markDirty()
         (world as? ServerWorld)?.chunkManager?.markForUpdate(pos)
     }
@@ -100,6 +116,19 @@ class StoreTableBlockEntity(pos: BlockPos, state: BlockState) :
 
     override fun toUpdatePacket(): Packet<ClientPlayPacketListener> {
         return BlockEntityUpdateS2CPacket.create(this)
+    }
+
+    override fun setWorld(world: World) {
+        super.setWorld(world)
+        (world as? ServerWorld)?.let { LoadedStoreTableTracker.register(it, pos) }
+    }
+
+    override fun markRemoved() {
+        val w = world
+        if (w is ServerWorld) {
+            LoadedStoreTableTracker.unregister(w, pos)
+        }
+        super.markRemoved()
     }
 
     companion object {
