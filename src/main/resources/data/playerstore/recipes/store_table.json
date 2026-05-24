@@ -2,12 +2,12 @@
   "type": "minecraft:crafting_shaped",
   "pattern": [
     "PPP",
-    " S ",
-    " S "
+    "S S",
+    "S S"
   ],
   "key": {
     "P": {
-      "item": "minecraft:oak_planks"
+      "item": "minecraft:white_wool"
     },
     "S": {
       "item": "minecraft:stick"
