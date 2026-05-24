@@ -1,0 +1,59 @@
+package io.github.tas0dev.mc.store.client.render
+
+import io.github.tas0dev.mc.store.blockentity.StoreTableBlockEntity
+import net.minecraft.client.MinecraftClient
+import net.minecraft.client.font.TextRenderer
+import net.minecraft.client.render.VertexConsumerProvider
+import net.minecraft.client.render.block.entity.BlockEntityRenderer
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory
+import net.minecraft.client.util.math.MatrixStack
+import net.minecraft.text.Text
+import net.minecraft.util.math.RotationAxis
+
+class StoreTableBlockEntityRenderer(ctx: BlockEntityRendererFactory.Context) : BlockEntityRenderer<StoreTableBlockEntity> {
+    private val textRenderer: TextRenderer = ctx.textRenderer
+
+    override fun render(
+        entity: StoreTableBlockEntity,
+        tickDelta: Float,
+        matrices: MatrixStack,
+        vertexConsumers: VertexConsumerProvider,
+        light: Int,
+        overlay: Int,
+    ) {
+        val price = entity.price
+        if (price <= 0) return
+
+        val client = MinecraftClient.getInstance()
+        val camera = client.gameRenderer.camera
+
+        val text: Text = Text.literal("$price")
+        val textWidth = textRenderer.getWidth(text).toFloat()
+
+        matrices.push()
+        matrices.translate(0.5, 1.05, 0.5)
+        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-camera.yaw))
+        matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(camera.pitch))
+
+        val scale = 0.02f
+        matrices.scale(-scale, -scale, scale)
+
+        val x = -textWidth / 2.0f
+        val y = 0.0f
+        val background = (0.4f * 255).toInt() shl 24
+        textRenderer.draw(
+            text,
+            x,
+            y,
+            0xFFFFFF,
+            false,
+            matrices.peek().positionMatrix,
+            vertexConsumers,
+            TextRenderer.TextLayerType.SEE_THROUGH,
+            background,
+            light,
+        )
+        matrices.pop()
+    }
+}
+

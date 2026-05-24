@@ -58,6 +58,12 @@ tasks.withType<JavaCompile>().configureEach {
 	options.release = 17
 }
 
+// This project is currently Kotlin-only, and some environments (like CI containers) may not ship `javac`.
+// Disable Java compilation tasks to allow building with only the Kotlin compiler.
+tasks.withType<JavaCompile>().configureEach {
+	enabled = false
+}
+
 kotlin {
 	compilerOptions {
 		jvmTarget = JvmTarget.JVM_17

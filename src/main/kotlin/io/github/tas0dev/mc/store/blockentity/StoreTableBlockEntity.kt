@@ -1,0 +1,59 @@
+package io.github.tas0dev.mc.store.blockentity
+
+import io.github.tas0dev.mc.store.registry.ModBlockEntities
+import net.minecraft.block.BlockState
+import net.minecraft.block.entity.BlockEntity
+import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.nbt.NbtCompound
+import net.minecraft.util.math.BlockPos
+import java.util.UUID
+
+class StoreTableBlockEntity(pos: BlockPos, state: BlockState) :
+    BlockEntity(ModBlockEntities.STORE_TABLE, pos, state) {
+
+    var ownerUuid: UUID? = null
+        private set
+    var ownerName: String? = null
+        private set
+
+    private var storedPrice: Int = 0
+
+    var price: Int
+        get() = storedPrice
+        set(value) {
+            storedPrice = value
+            markDirty()
+        }
+
+    fun setOwner(player: PlayerEntity) {
+        ownerUuid = player.uuid
+        ownerName = player.gameProfile.name
+        markDirty()
+    }
+
+    fun isOwner(player: PlayerEntity): Boolean {
+        val uuid = ownerUuid ?: return false
+        return uuid == player.uuid
+    }
+
+    override fun writeNbt(nbt: NbtCompound) {
+        super.writeNbt(nbt)
+        nbt.putInt(NBT_PRICE, storedPrice)
+        ownerUuid?.let { nbt.putUuid(NBT_OWNER_UUID, it) }
+        ownerName?.let { nbt.putString(NBT_OWNER_NAME, it) }
+    }
+
+    override fun readNbt(nbt: NbtCompound) {
+        super.readNbt(nbt)
+        // Avoid marking the chunk dirty on load.
+        storedPrice = nbt.getInt(NBT_PRICE)
+        ownerUuid = if (nbt.containsUuid(NBT_OWNER_UUID)) nbt.getUuid(NBT_OWNER_UUID) else null
+        ownerName = if (nbt.contains(NBT_OWNER_NAME)) nbt.getString(NBT_OWNER_NAME) else null
+    }
+
+    companion object {
+        private const val NBT_PRICE = "Price"
+        private const val NBT_OWNER_UUID = "OwnerUuid"
+        private const val NBT_OWNER_NAME = "OwnerName"
+    }
+}
