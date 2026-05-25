@@ -1,14 +1,11 @@
 {
   "type": "minecraft:crafting_shaped",
   "pattern": [
-    "PPP",
     "S S",
-    "S S"
+    "S S",
+    "SSS"
   ],
   "key": {
-    "P": {
-      "item": "playerstore:store_table"
-    },
     "S": {
       "item": "minecraft:stick"
     }
