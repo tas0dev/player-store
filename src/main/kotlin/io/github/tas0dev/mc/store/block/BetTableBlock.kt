@@ -1,5 +1,7 @@
 package io.github.tas0dev.mc.store.block
 
+import io.github.tas0dev.mc.store.blockentity.BetPhase
+import io.github.tas0dev.mc.store.blockentity.BetTableBlockEntity
 import io.github.tas0dev.mc.store.blockentity.StoreTableBlockEntity
 import io.github.tas0dev.mc.store.economy.SilverBalances
 import net.minecraft.block.*
@@ -16,11 +18,12 @@ import net.minecraft.util.math.BlockPos
 import net.minecraft.util.shape.VoxelShape
 import net.minecraft.world.BlockView
 import net.minecraft.world.World
+import net.minecraft.text.ClickEvent
 
 
 class BetTableBlock(settings: Settings) : BlockWithEntity(settings), BlockEntityProvider {
-    override fun createBlockEntity(pos: BlockPos, state: BlockState): StoreTableBlockEntity {
-        return StoreTableBlockEntity(pos, state)
+    override fun createBlockEntity(pos: BlockPos, state: BlockState): BetTableBlockEntity {
+        return BetTableBlockEntity(pos, state)
     }
 
     private val shape: VoxelShape? = createCuboidShape(
@@ -77,126 +80,100 @@ class BetTableBlock(settings: Settings) : BlockWithEntity(settings), BlockEntity
     ): ActionResult {
         if (world.isClient) return ActionResult.SUCCESS
 
-        val be = world.getBlockEntity(pos) as? StoreTableBlockEntity ?: return ActionResult.PASS
+        val be = world.getBlockEntity(pos) as? BetTableBlockEntity ?: return ActionResult.PASS
         val held = player.getStackInHand(hand)
-        val sneaking = player.isSneaking
+        val server = world.server ?: return ActionResult.SUCCESS
 
-        // Price setting: owner + named paper with positive integer
-        if (held.item == Items.PAPER && held.hasCustomName()) {
-            if (!be.isOwner(player)) {
-                player.sendMessage(Text.literal("店主以外は価格を変更できません"), false)
+        // IDLE: GMが紙で掛け金設定
+        if (be.phase == BetPhase.IDLE) {
+            if (held.item != Items.PAPER || !held.hasCustomName()) {
+                player.sendMessage(Text.literal("掛け金を書いた紙で右クリックしてください"), false)
                 return ActionResult.SUCCESS
             }
 
-            val raw = held.name.string.trim()
-            val match = PRICE_REGEX.matchEntire(raw)
-            if (match == null) {
-                player.sendMessage(Text.literal("数字のみ入力してください"), false)
+            val stake = held.name.string.trim().toIntOrNull()
+            if (stake == null || stake <= 0) {
+                player.sendMessage(Text.literal("紙の名前は正の整数にしてください"), false)
                 return ActionResult.SUCCESS
             }
 
-            val price = raw.toIntOrNull()
-            if (price == null || price <= 0) {
-                player.sendMessage(Text.literal("数字のみ入力してください"), false)
-                return ActionResult.SUCCESS
-            }
+            be.gameMasterUuid = player.uuid
+            be.stake = stake
+            be.pot = 0
+            be.participants.clear()
+            be.phase = BetPhase.WAITING
 
-            be.price = price
             be.markDirty()
-            // Ensure the updated BlockEntity NBT reaches clients for rendering.
             (world as? ServerWorld)?.chunkManager?.markForUpdate(pos)
-            player.sendMessage(Text.literal("価格を $price シルバーに設定しました"), false)
+
+            player.sendMessage(Text.literal("${stake}シルバーの賭けを作成しました。参加待機中です"), false)
             return ActionResult.SUCCESS
         }
 
-        // Product setup / stock: owner only.
-        if (be.isOwner(player)) {
-            // Sneak + empty hand: clear product.
-            if (sneaking && held.isEmpty) {
-                returnStockToOwner(world, pos, player, be)
-                be.sellItem = ItemStack.EMPTY
-                be.stock = 0
-                be.markDirty()
-                (world as? ServerWorld)?.chunkManager?.markForUpdate(pos)
-                player.sendMessage(Text.literal("商品設定をクリアしました"), false)
+        // WAITING: GMが空手で右クリック → ゲーム開始
+        if (be.phase == BetPhase.WAITING && be.gameMasterUuid == player.uuid && held.isEmpty) {
+            if (be.participants.size < 2) {
+                player.sendMessage(Text.literal("参加者が2人以上必要です"), false)
                 return ActionResult.SUCCESS
             }
 
-            // Deposit stock if it matches current product.
-            if (!held.isEmpty && !be.sellItem.isEmpty && ItemStack.canCombine(held, be.sellItem)) {
-                val space = (MAX_STOCK - be.stock).coerceAtLeast(0)
-                val add = held.count.coerceAtMost(space)
-                if (add <= 0) {
-                    player.sendMessage(Text.literal("在庫が上限（$MAX_STOCK 個）です"), false)
-                    return ActionResult.SUCCESS
-                }
-                held.decrement(add)
-                be.stock = be.stock + add
-                be.markDirty()
-                (world as? ServerWorld)?.chunkManager?.markForUpdate(pos)
-                player.sendMessage(Text.literal("在庫を $add 個追加しました（在庫: ${be.stock}）"), false)
+            be.phase = BetPhase.PLAYING
+            be.markDirty()
+            (world as? ServerWorld)?.chunkManager?.markForUpdate(pos)
+
+            player.sendMessage(Text.literal("ゲームを開始しました"), false)
+            return ActionResult.SUCCESS
+        }
+
+        // WAITING: 参加者が右クリック → 掛け金支払い
+        if (be.phase == BetPhase.WAITING) {
+            if (be.participants.contains(player.uuid)) {
+                player.sendMessage(Text.literal("すでに参加しています"), false)
                 return ActionResult.SUCCESS
             }
 
-            // Set/replace product (does not consume).
-            // about.md: holding the item and right-click registers it as the sell item.
-            if (!held.isEmpty && held.item != Items.PAPER) {
-                // If there is stock for the previous item, return it to the owner before replacing.
-                returnStockToOwner(world, pos, player, be)
-                val product = held.copy()
-                product.count = 1
-                be.sellItem = product
-                be.stock = 0
-                be.markDirty()
-                (world as? ServerWorld)?.chunkManager?.markForUpdate(pos)
-                player.sendMessage(Text.literal("販売商品を設定しました"), false)
-                return ActionResult.SUCCESS
-            }
-        } else {
-            // Purchase: non-owner only (owner can test by not sneaking with empty hand, but we keep it strict).
-            if (be.price <= 0) {
-                player.sendMessage(Text.literal("価格が設定されていません"), false)
-                return ActionResult.SUCCESS
-            }
-            val product = be.sellItem
-            if (product.isEmpty) {
-                player.sendMessage(Text.literal("商品が設定されていません"), false)
-                return ActionResult.SUCCESS
-            }
-            if (be.stock <= 0) {
-                player.sendMessage(Text.literal("在庫がありません"), false)
-                return ActionResult.SUCCESS
-            }
-
-            val server = world.server ?: return ActionResult.SUCCESS
-            val price = be.price
-            if (!SilverBalances.tryTake(server, player.uuid, price)) {
+            val stake = be.stake
+            if (!SilverBalances.tryTake(server, player.uuid, stake)) {
                 player.sendMessage(Text.literal("シルバーが足りません"), false)
                 return ActionResult.SUCCESS
             }
-            be.ownerUuid?.let { ownerUuid ->
-                SilverBalances.add(server, ownerUuid, price)
-            }
 
-            val toGive = product.copy()
-            toGive.count = 1
-            val inserted = player.inventory.insertStack(toGive)
-            if (!inserted) {
-                // refund
-                SilverBalances.add(server, player.uuid, price)
-                be.ownerUuid?.let { ownerUuid -> SilverBalances.add(server, ownerUuid, -price) }
-                player.sendMessage(Text.literal("インベントリに空きがありません"), false)
-                return ActionResult.SUCCESS
-            }
+            be.participants.add(player.uuid)
+            be.pot += stake
 
-            be.stock = be.stock - 1
             be.markDirty()
             (world as? ServerWorld)?.chunkManager?.markForUpdate(pos)
-            player.sendMessage(Text.literal("${price} シルバーで購入しました（残り在庫: ${be.stock}）"), false)
+
+            player.sendMessage(Text.literal("${stake}シルバーを賭けました。現在のポット: ${be.pot}シルバー"), false)
             return ActionResult.SUCCESS
         }
 
-        return ActionResult.PASS
+        // PLAYING: GMが空手で右クリック → 勝者選択表示
+        if (be.phase == BetPhase.PLAYING && be.gameMasterUuid == player.uuid && held.isEmpty) {
+            player.sendMessage(Text.literal("勝者を選択してください。ポット: ${be.pot}シルバー"), false)
+
+            for (uuid in be.participants) {
+                val target = server.playerManager.getPlayer(uuid)
+                val name = target?.name?.string ?: uuid.toString()
+
+                val text = Text.literal("[ $name に渡す ]")
+                    .styled { style ->
+                        style.withClickEvent(
+                            ClickEvent(
+                                ClickEvent.Action.RUN_COMMAND,
+                                "/bettable_payout ${pos.x} ${pos.y} ${pos.z} $uuid"
+                            )
+                        )
+                    }
+
+                player.sendMessage(text, false)
+            }
+
+            return ActionResult.SUCCESS
+        }
+
+        player.sendMessage(Text.literal("今は操作できません"), false)
+        return ActionResult.SUCCESS
     }
 
     companion object {
