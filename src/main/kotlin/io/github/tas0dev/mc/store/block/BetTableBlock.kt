@@ -26,9 +26,9 @@ class BetTableBlock(settings: Settings) : BlockWithEntity(settings), BlockEntity
         return BetTableBlockEntity(pos, state)
     }
 
-    private val shape: VoxelShape? = createCuboidShape(
-        -16.0, 0.0, -16.0,
-        32.0, 16.0, 32.0
+    private val shape: VoxelShape = createCuboidShape(
+        0.0, 0.0, 0.0,
+        16.0, 16.0, 16.0
     )
 
     @Deprecated("Deprecated in Java")

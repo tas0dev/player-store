@@ -18,8 +18,6 @@ object ModBlocks {
     val STORE_TABLE: Block = StoreTableBlock(
         AbstractBlock.Settings.copy(Blocks.CRAFTING_TABLE)
             .strength(2.5f)
-            // The model is not a full cube; ensure neighboring faces are not wrongly culled and
-            // that it doesn't behave like a fully opaque block.
             .nonOpaque(),
     )
 
