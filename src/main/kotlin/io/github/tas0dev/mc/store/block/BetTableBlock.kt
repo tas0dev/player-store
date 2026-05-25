@@ -155,7 +155,9 @@ class BetTableBlock(settings: Settings) : BlockWithEntity(settings), BlockEntity
             be.markDirty()
             (world as? ServerWorld)?.chunkManager?.markForUpdate(pos)
 
-            player.sendMessage(Text.literal("${stake}シルバーを賭けました。現在のポット: ${be.pot}シルバー"), false)
+            player.sendMessage(Text.literal("${stake}シルバーを賭けました。"), false)
+            server.sendMessage(Text.literal("どこかの賭け場で ${player.name.string} が賭けに参加しました。破産か、それとも..."))
+            server.sendMessage(Text.literal("現在のポット: ${be.pot}シルバー"))
             return ActionResult.SUCCESS
         }
 
