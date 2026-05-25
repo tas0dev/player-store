@@ -70,6 +70,7 @@ class BetTableBlock(settings: Settings) : BlockWithEntity(settings), BlockEntity
         be.setOwner(player)
     }
 
+    @Deprecated("Deprecated in Java")
     override fun onUse(
         state: BlockState,
         world: World,
@@ -102,6 +103,16 @@ class BetTableBlock(settings: Settings) : BlockWithEntity(settings), BlockEntity
             be.pot = 0
             be.participants.clear()
             be.phase = BetPhase.WAITING
+
+            be.participants.add(player.uuid)
+
+            if (!SilverBalances.tryTake(server, player.uuid, stake)) {
+                player.sendMessage(Text.literal("シルバーが足りません"), false)
+                return ActionResult.SUCCESS
+            }
+
+            be.participants.add(player.uuid)
+            be.pot += stake
 
             be.markDirty()
             (world as? ServerWorld)?.chunkManager?.markForUpdate(pos)
