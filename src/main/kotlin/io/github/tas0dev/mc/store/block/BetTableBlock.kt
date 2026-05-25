@@ -112,7 +112,7 @@ class BetTableBlock(settings: Settings) : BlockWithEntity(settings), BlockEntity
             }
 
             be.participants.add(player.uuid)
-            be.pot += stake
+            be.pot = stake  // 前回のpotを残さない
 
             be.markDirty()
             (world as? ServerWorld)?.chunkManager?.markForUpdate(pos)
