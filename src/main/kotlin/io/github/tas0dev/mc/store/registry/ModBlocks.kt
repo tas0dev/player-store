@@ -1,6 +1,7 @@
 package io.github.tas0dev.mc.store.registry
 
 import io.github.tas0dev.mc.store.PlayerStore
+import io.github.tas0dev.mc.store.block.BetTableBlock
 import io.github.tas0dev.mc.store.block.StoreTableBlock
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents
 import net.minecraft.block.AbstractBlock
@@ -22,8 +23,15 @@ object ModBlocks {
             .nonOpaque(),
     )
 
+    val BET_TABLE: Block = BetTableBlock(
+        AbstractBlock.Settings.copy(Blocks.CRAFTING_TABLE)
+        .strength(2.5f * 3)
+        .nonOpaque(),
+    )
+
     fun register() {
         registerBlockWithItem("store_table", STORE_TABLE)
+        registerBlockWithItem("bet_table", BET_TABLE)
     }
 
     private fun registerBlockWithItem(path: String, block: Block) {
