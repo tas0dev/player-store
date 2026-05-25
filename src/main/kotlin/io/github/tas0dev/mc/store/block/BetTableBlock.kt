@@ -102,9 +102,6 @@ class BetTableBlock(settings: Settings) : BlockWithEntity(settings), BlockEntity
             be.stake = stake
             be.pot = 0
             be.participants.clear()
-            be.phase = BetPhase.WAITING
-
-            be.participants.add(player.uuid)
 
             if (!SilverBalances.tryTake(server, player.uuid, stake)) {
                 player.sendMessage(Text.literal("シルバーが足りません"), false)
@@ -112,7 +109,8 @@ class BetTableBlock(settings: Settings) : BlockWithEntity(settings), BlockEntity
             }
 
             be.participants.add(player.uuid)
-            be.pot = stake  // 前回のpotを残さない
+            be.pot = stake
+            be.phase = BetPhase.WAITING
 
             be.markDirty()
             (world as? ServerWorld)?.chunkManager?.markForUpdate(pos)

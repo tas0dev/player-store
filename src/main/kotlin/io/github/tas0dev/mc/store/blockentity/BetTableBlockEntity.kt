@@ -6,8 +6,10 @@ import net.minecraft.block.entity.BlockEntity
 import net.minecraft.nbt.NbtCompound
 import net.minecraft.nbt.NbtElement
 import net.minecraft.nbt.NbtList
+import net.minecraft.nbt.NbtString
 import net.minecraft.util.math.BlockPos
 import net.minecraft.world.World
+import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket
 import java.util.UUID
 
 enum class BetPhase {
@@ -44,20 +46,11 @@ class BetTableBlockEntity(
     override fun writeNbt(nbt: NbtCompound) {
         super.writeNbt(nbt)
 
-        nbt.putString("Phase", phase.name)
-
-        gameMasterUuid?.let {
-            nbt.putUuid("GameMasterUuid", it)
-        }
-
-        nbt.putInt("Stake", stake)
         nbt.putInt("Pot", pot)
 
         val list = NbtList()
         for (uuid in participants) {
-            val entry = NbtCompound()
-            entry.putUuid("Uuid", uuid)
-            list.add(entry)
+            list.add(NbtString.of(uuid.toString()))
         }
         nbt.put("Participants", list)
     }
@@ -65,29 +58,12 @@ class BetTableBlockEntity(
     override fun readNbt(nbt: NbtCompound) {
         super.readNbt(nbt)
 
-        phase = try {
-            BetPhase.valueOf(nbt.getString("Phase"))
-        } catch (_: Exception) {
-            BetPhase.IDLE
-        }
-
-        gameMasterUuid = if (nbt.containsUuid("GameMasterUuid")) {
-            nbt.getUuid("GameMasterUuid")
-        } else {
-            null
-        }
-
-        stake = nbt.getInt("Stake")
         pot = nbt.getInt("Pot")
 
         participants.clear()
-
-        val list = nbt.getList("Participants", NbtElement.COMPOUND_TYPE.toInt())
-        for (i in 0 until list.size) {
-            val entry = list.getCompound(i)
-            if (entry.containsUuid("Uuid")) {
-                participants.add(entry.getUuid("Uuid"))
-            }
+        val list = nbt.getList("Participants", NbtElement.STRING_TYPE.toInt())
+        for (i in list.indices) {
+            participants.add(UUID.fromString(list.getString(i)))
         }
     }
 
@@ -98,5 +74,12 @@ class BetTableBlockEntity(
         pot = 0
         participants.clear()
         markDirty()
+    }
+
+    override fun toUpdatePacket(): BlockEntityUpdateS2CPacket? =
+        BlockEntityUpdateS2CPacket.create(this)
+
+    override fun toInitialChunkDataNbt(): NbtCompound {
+        return createNbt()
     }
 }

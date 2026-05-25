@@ -1,13 +1,13 @@
 package io.github.tas0dev.mc.store.client.render
 
 import io.github.tas0dev.mc.store.blockentity.BetTableBlockEntity
+import net.minecraft.client.MinecraftClient
 import net.minecraft.client.font.TextRenderer
 import net.minecraft.client.render.VertexConsumerProvider
 import net.minecraft.client.render.block.entity.BlockEntityRenderer
 import net.minecraft.client.render.block.entity.BlockEntityRendererFactory
 import net.minecraft.client.util.math.MatrixStack
 import net.minecraft.text.Text
-import net.minecraft.util.math.RotationAxis
 
 class BetTableBlockEntityRenderer(
     ctx: BlockEntityRendererFactory.Context
@@ -22,18 +22,17 @@ class BetTableBlockEntityRenderer(
         light: Int,
         overlay: Int,
     ) {
-        val participantsText = Text.literal("参加: ${entity.participants.size}人")
+        val participantsText = Text.literal("人数: ${entity.participants.size}人")
         val potText = Text.literal("ポット: ${entity.pot} シルバー")
 
+        val client = MinecraftClient.getInstance()
+        val dispatcher = client.entityRenderDispatcher
+
         matrices.push()
+        matrices.translate(0.5, 1.45, 0.5)
+        matrices.multiply(dispatcher.rotation)
 
-        // 机の上
-        matrices.translate(0.5, 1.03, 0.5)
-
-        // 水平に寝かせる
-        matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(90.0f))
-
-        val scale = 0.0125f
+        val scale = 0.02f
         matrices.scale(-scale, -scale, scale)
 
         val background = (0.4f * 255).toInt() shl 24
